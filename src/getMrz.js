@@ -27,13 +27,18 @@ function getMrz(image, options) {
 }
 
 function internalGetMrz(image, options = {}) {
-  const { debug = false, out = {} } = options;
+  const { debug = false, out = {}, skipResize = false, skipUpsideDownRotate = false, roiFilter = { minSurface: 5000 } } = options;
 
   const original = image;
 
   const images = out;
 
-  const resized = image.resize({ width: 500 });
+  let resized = null;
+  if (!skipResize) { 
+    resized = image.resize({ width: 500 });
+  } else {
+    resized = image;  
+  }
   if (debug) images.resized = resized;
 
   const originalToTreatedRatio = original.width / resized.width;
@@ -73,10 +78,7 @@ function internalGetMrz(image, options = {}) {
 
   const roiManager = resized.getRoiManager();
   roiManager.fromMask(image);
-  let rois = roiManager.getRois({
-    minSurface: 5000
-    // minWidth: 400
-  });
+  let rois = roiManager.getRois(roiFilter);
 
   let masks = rois.map((roi) => roi.getMask());
   rois = rois.map((roi, idx) => {
@@ -213,7 +215,7 @@ function internalGetMrz(image, options = {}) {
     toCrop = afterRotate;
   }
 
-  if (mrzCropOptions.y < toCrop.height / 2) {
+  if (!skipUpsideDownRotate && mrzCropOptions.y < toCrop.height / 2) {
     // image is upside down, turn it back
     toCrop = toCrop.rotate(180);
     const newXY = applyToPoint(getRotationAround(toCrop, 180), mrzCropOptions);
